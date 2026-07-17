@@ -35,12 +35,12 @@ const STORAGE_KEYS_KEY = "wallet-ledger:api-keys";
 const STORAGE_ADDR_KEY = "wallet-ledger:addresses";
 
 function fmtAmt(n, digits = 6) {
-  if (n === null || n === undefined || Number.isNaN(n)) return "—";
+  if (n === null || n === undefined || Number.isNaN(n)) return "窶�";
   return Number(n).toLocaleString("ja-JP", { maximumFractionDigits: digits });
 }
 
 function fmtDate(iso) {
-  if (!iso) return "—";
+  if (!iso) return "窶�";
   return iso.slice(0, 16).replace("T", " ");
 }
 
@@ -129,9 +129,9 @@ export default function App() {
   const fetchEvm = async (chainKey) => {
     const addr = addresses[chainKey].trim();
     if (!/^0x[a-fA-F0-9]{40}$/.test(addr)) {
-      throw new Error("アドレスの形式が正しくありません(0xで始まる42文字)");
+      throw new Error("繧｢繝峨Ξ繧ｹ縺ｮ蠖｢蠑上′豁｣縺励￥縺ゅｊ縺ｾ縺帙ｓ(0x縺ｧ蟋九∪繧�42譁�ｭ�)");
     }
-    if (!etherscanKey) throw new Error("Etherscan APIキーが未設定です");
+    if (!etherscanKey) throw new Error("Etherscan API繧ｭ繝ｼ縺梧悴險ｭ螳壹〒縺�");
     const chainId = CHAINS[chainKey].chainId;
     const base = "https://api.etherscan.io/v2/api";
 
@@ -182,15 +182,15 @@ export default function App() {
   const fetchSolana = async () => {
     const addr = addresses.sol.trim();
     if (addr.length < 32 || addr.length > 44) {
-      throw new Error("アドレスの形式が正しくないようです");
+      throw new Error("繧｢繝峨Ξ繧ｹ縺ｮ蠖｢蠑上′豁｣縺励￥縺ｪ縺�ｈ縺�〒縺�");
     }
-    if (!heliusKey) throw new Error("Helius APIキーが未設定です");
+    if (!heliusKey) throw new Error("Helius API繧ｭ繝ｼ縺梧悴險ｭ螳壹〒縺�");
     const res = await fetch(
       `https://api.helius.xyz/v0/addresses/${addr}/transactions?api-key=${heliusKey}`
     );
     if (!res.ok) throw new Error(`API error ${res.status}`);
     const data = await res.json();
-    if (!Array.isArray(data)) throw new Error("想定外のレスポンス形式でした");
+    if (!Array.isArray(data)) throw new Error("諠ｳ螳壼､悶�繝ｬ繧ｹ繝昴Φ繧ｹ蠖｢蠑上〒縺励◆");
 
     const mapped = [];
     for (const t of data) {
@@ -237,7 +237,7 @@ export default function App() {
   const fetchSui = async () => {
     const addr = addresses.sui.trim();
     if (!/^0x[a-fA-F0-9]{64}$/.test(addr)) {
-      throw new Error("アドレスの形式が正しくありません(0xで始まる66文字)");
+      throw new Error("繧｢繝峨Ξ繧ｹ縺ｮ蠖｢蠑上′豁｣縺励￥縺ゅｊ縺ｾ縺帙ｓ(0x縺ｧ蟋九∪繧�66譁�ｭ�)");
     }
     const query = `
       query($addr: SuiAddress!) {
@@ -267,7 +267,7 @@ export default function App() {
     });
     if (!res.ok) throw new Error(`API error ${res.status}`);
     const json = await res.json();
-    if (json.errors) throw new Error(json.errors[0]?.message || "GraphQLエラー");
+    if (json.errors) throw new Error(json.errors[0]?.message || "GraphQL繧ｨ繝ｩ繝ｼ");
 
     const txNodes = json.data?.address?.transactions?.nodes || [];
     const mapped = [];
@@ -286,7 +286,7 @@ export default function App() {
       myChanges.forEach((change, idx) => {
         const amountRaw = BigInt(change.amount);
         const symbol = extractCoinSymbol(change.coinType.repr);
-        const decimals = 9; // 暫定:SUI以外は桁数が異なる可能性あり(要調整)
+        const decimals = 9; // 證ｫ螳�:SUI莉･螟悶�譯∵焚縺檎焚縺ｪ繧句庄閭ｽ諤ｧ縺ゅｊ(隕∬ｪｿ謨ｴ)
         const value = Number(amountRaw) / Math.pow(10, decimals);
 
         mapped.push({
@@ -325,14 +325,14 @@ export default function App() {
         persistTxs(next);
         setStatus(
           newOnes.length > 0
-            ? `${newOnes.length}件の取引を取得しました(合計${fresh.length}件を確認)`
-            : "新しい取引はありませんでした(すでに取得済みです)"
+            ? `${newOnes.length}莉ｶ縺ｮ蜿門ｼ輔ｒ蜿門ｾ励＠縺ｾ縺励◆(蜷郁ｨ�${fresh.length}莉ｶ繧堤｢ｺ隱�)`
+            : "譁ｰ縺励＞蜿門ｼ輔�縺ゅｊ縺ｾ縺帙ｓ縺ｧ縺励◆(縺吶〒縺ｫ蜿門ｾ玲ｸ医∩縺ｧ縺�)"
         );
         return next;
       });
     } catch (e) {
       console.error(e);
-      setError(`取得に失敗しました(${e.message || "unknown error"})。この画面から直接アクセスできない可能性があります。`);
+      setError(`蜿門ｾ励↓螟ｱ謨励＠縺ｾ縺励◆(${e.message || "unknown error"})縲ゅ％縺ｮ逕ｻ髱｢縺九ｉ逶ｴ謗･繧｢繧ｯ繧ｻ繧ｹ縺ｧ縺阪↑縺�庄閭ｽ諤ｧ縺後≠繧翫∪縺吶Ａ);
     } finally {
       setFetching(false);
     }
@@ -359,12 +359,12 @@ export default function App() {
       <header style={styles.header}>
         <div>
           <div style={styles.eyebrow}>WALLET LEDGER</div>
-          <h1 style={styles.title}>マルチチェーン取引トラッカー</h1>
+          <h1 style={styles.title}>繝槭Ν繝√メ繧ｧ繝ｼ繝ｳ蜿門ｼ輔ヨ繝ｩ繝�き繝ｼ</h1>
         </div>
         <button
           style={{ ...styles.iconBtn, border: `1px solid ${COLORS.border}`, borderRadius: 8, padding: 8 }}
           onClick={() => setShowKeys((s) => !s)}
-          title="APIキー設定"
+          title="API繧ｭ繝ｼ險ｭ螳�"
         >
           <Settings size={16} color={COLORS.textDim} />
         </button>
@@ -372,40 +372,40 @@ export default function App() {
 
       {showKeys && (
         <div style={styles.card}>
-          <div style={styles.cardTitle}>APIキー設定</div>
+          <div style={styles.cardTitle}>API繧ｭ繝ｼ險ｭ螳�</div>
           <div style={styles.note}>
-            Ethereum・BNB Chainは共通の<strong>Etherscan APIキー</strong>(V2 API、無料枠あり)、Solanaは
-            <strong>Helius APIキー</strong>(無料枠あり)を使います。どちらもブラウザに保存されるだけで、サーバーには送信されません。
-            Suiは公式GraphQLエンドポイントを直接使うため、APIキーは不要です。
+            Ethereum繝ｻBNB Chain縺ｯ蜈ｱ騾壹�<strong>Etherscan API繧ｭ繝ｼ</strong>(V2 API縲∫┌譁呎棧縺ゅｊ)縲ヾolana縺ｯ
+            <strong>Helius API繧ｭ繝ｼ</strong>(辟｡譁呎棧縺ゅｊ)繧剃ｽｿ縺�∪縺吶ゅ←縺｡繧峨ｂ繝悶Λ繧ｦ繧ｶ縺ｫ菫晏ｭ倥＆繧後ｋ縺�縺代〒縲√し繝ｼ繝舌�縺ｫ縺ｯ騾∽ｿ｡縺輔ｌ縺ｾ縺帙ｓ縲�
+            Sui縺ｯ蜈ｬ蠑秀raphQL繧ｨ繝ｳ繝峨�繧､繝ｳ繝医ｒ逶ｴ謗･菴ｿ縺�◆繧√、PI繧ｭ繝ｼ縺ｯ荳崎ｦ√〒縺吶�
           </div>
           <div style={styles.fieldRow}>
-            <label style={styles.label}>Etherscan APIキー(ETH/BNB共通)</label>
+            <label style={styles.label}>Etherscan API繧ｭ繝ｼ(ETH/BNB蜈ｱ騾�)</label>
             <input
               style={styles.input}
               type="password"
               value={keyDraft.etherscan}
               onChange={(e) => setKeyDraft((s) => ({ ...s, etherscan: e.target.value }))}
-              placeholder="発行したAPIキーを貼り付け"
+              placeholder="逋ｺ陦後＠縺蘗PI繧ｭ繝ｼ繧定ｲｼ繧贋ｻ倥￠"
             />
           </div>
           <div style={styles.fieldRow}>
-            <label style={styles.label}>Helius APIキー(Solana)</label>
+            <label style={styles.label}>Helius API繧ｭ繝ｼ(Solana)</label>
             <input
               style={styles.input}
               type="password"
               value={keyDraft.helius}
               onChange={(e) => setKeyDraft((s) => ({ ...s, helius: e.target.value }))}
-              placeholder="発行したAPIキーを貼り付け"
+              placeholder="逋ｺ陦後＠縺蘗PI繧ｭ繝ｼ繧定ｲｼ繧贋ｻ倥￠"
             />
           </div>
           <button style={styles.btnPrimary} onClick={saveKeys}>
-            保存
+            菫晏ｭ�
           </button>
         </div>
       )}
 
       <div style={styles.card}>
-        <div style={styles.cardTitle}>ウォレットから取得</div>
+        <div style={styles.cardTitle}>繧ｦ繧ｩ繝ｬ繝�ヨ縺九ｉ蜿門ｾ�</div>
         <div style={styles.modeToggle}>
           {Object.entries(CHAINS).map(([key, c]) => (
             <button
@@ -424,15 +424,15 @@ export default function App() {
             onChange={(e) => saveAddress(activeChain, e.target.value)}
             placeholder={
               activeChain === "sol"
-                ? "Solanaアドレス"
+                ? "Solana繧｢繝峨Ξ繧ｹ"
                 : activeChain === "sui"
-                ? "0x… で始まるアドレス(66文字)"
-                : "0x… で始まるアドレス"
+                ? "0x窶ｦ 縺ｧ蟋九∪繧九い繝峨Ξ繧ｹ(66譁�ｭ�)"
+                : "0x窶ｦ 縺ｧ蟋九∪繧九い繝峨Ξ繧ｹ"
             }
           />
           <button style={{ ...styles.btnPrimary, opacity: fetching ? 0.6 : 1 }} disabled={fetching} onClick={handleFetch}>
             {fetching ? <Loader2 size={16} style={{ animation: "spin 1s linear infinite" }} /> : <RefreshCw size={16} />}
-            {fetching ? "取得中…" : "取得"}
+            {fetching ? "蜿門ｾ嶺ｸｭ窶ｦ" : "蜿門ｾ�"}
           </button>
         </div>
         {error && <div style={styles.errorBanner}>{error}</div>}
@@ -441,7 +441,7 @@ export default function App() {
 
       <div style={styles.card}>
         <div style={styles.tableHeaderRow}>
-          <div style={styles.cardTitle}>取引一覧({filteredTxs.length}件)</div>
+          <div style={styles.cardTitle}>蜿門ｼ穂ｸ隕ｧ({filteredTxs.length}莉ｶ)</div>
           <div style={styles.modeToggle}>
             {["all", "eth", "bnb", "sol", "sui"].map((f) => (
               <button
@@ -449,7 +449,7 @@ export default function App() {
                 onClick={() => setChainFilter(f)}
                 style={{ ...styles.modeBtn, ...(chainFilter === f ? styles.modeBtnActive : {}) }}
               >
-                {f === "all" ? "すべて" : CHAINS[f].label}
+                {f === "all" ? "縺吶∋縺ｦ" : CHAINS[f].label}
               </button>
             ))}
           </div>
@@ -457,14 +457,14 @@ export default function App() {
 
         {filteredTxs.length === 0 ? (
           <div style={styles.emptyState}>
-            まだ取引がありません。上の「取得」からウォレットアドレスを入力してください。
+            縺ｾ縺�蜿門ｼ輔′縺ゅｊ縺ｾ縺帙ｓ縲ゆｸ翫�縲悟叙蠕励阪°繧峨え繧ｩ繝ｬ繝�ヨ繧｢繝峨Ξ繧ｹ繧貞�蜉帙＠縺ｦ縺上□縺輔＞縲�
           </div>
         ) : (
           <div style={styles.tableWrap}>
             <table style={styles.table}>
               <thead>
                 <tr>
-                  {["日時", "チェーン", "種別", "銘柄", "数量", "相手アドレス", ""].map((h) => (
+                  {["譌･譎�", "繝√ぉ繝ｼ繝ｳ", "遞ｮ蛻･", "驫俶氛", "謨ｰ驥�", "逶ｸ謇九い繝峨Ξ繧ｹ", ""].map((h) => (
                     <th key={h} style={styles.th}>
                       {h}
                     </th>
@@ -480,7 +480,7 @@ export default function App() {
                     </td>
                     <td style={styles.td}>
                       <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                        {typeIcon(t.type)} {t.type === "send" ? "送金" : t.type === "swap" ? "スワップ" : "受信"}
+                        {typeIcon(t.type)} {t.type === "send" ? "騾�≡" : t.type === "swap" ? "繧ｹ繝ｯ繝��" : "蜿嶺ｿ｡"}
                       </span>
                     </td>
                     <td style={{ ...styles.td, fontWeight: 600 }}>{t.asset}</td>
@@ -489,7 +489,7 @@ export default function App() {
                       {fmtAmt(t.amount)}
                     </td>
                     <td style={{ ...styles.td, fontFamily: "monospace", fontSize: 11 }}>
-                      {t.counterparty ? `${t.counterparty.slice(0, 6)}...${t.counterparty.slice(-4)}` : "—"}
+                      {t.counterparty ? `${t.counterparty.slice(0, 6)}...${t.counterparty.slice(-4)}` : "窶�"}
                     </td>
                     <td style={styles.td}>
                       {CHAINS[t.chain] && t.txHash && (
@@ -507,7 +507,7 @@ export default function App() {
       </div>
 
       <div style={styles.footNote}>
-        現段階は試作(v1)です:送金・トークン移動の一覧表示までを実装しています。損益計算(総平均法)・DeFi・スワップの詳細判定は次の段階で追加予定です。
+        迴ｾ谿ｵ髫弱�隧ｦ菴�(v1)縺ｧ縺�:騾�≡繝ｻ繝医�繧ｯ繝ｳ遘ｻ蜍輔�荳隕ｧ陦ｨ遉ｺ縺ｾ縺ｧ繧貞ｮ溯｣�＠縺ｦ縺�∪縺吶よ錐逶願ｨ育ｮ�(邱丞ｹｳ蝮�ｳ�)繝ｻDeFi繝ｻ繧ｹ繝ｯ繝��縺ｮ隧ｳ邏ｰ蛻､螳壹�谺｡縺ｮ谿ｵ髫弱〒霑ｽ蜉�莠亥ｮ壹〒縺吶�
       </div>
     </div>
   );
@@ -531,20 +531,4 @@ const styles = {
   note: { color: COLORS.textDim, fontSize: 12, lineHeight: 1.6, marginBottom: 10 },
   fieldRow: { display: "flex", gap: 8, alignItems: "center", marginBottom: 10, flexWrap: "wrap" },
   label: { fontSize: 12, color: COLORS.textDim, minWidth: 180 },
-  input: {
-    background: COLORS.bg,
-    border: `1px solid ${COLORS.border}`,
-    borderRadius: 8,
-    color: COLORS.text,
-    padding: "8px 10px",
-    fontSize: 13,
-    fontFamily: "'JetBrains Mono', monospace",
-    minWidth: 200,
-  },
-  btnPrimary: {
-    display: "flex",
-    alignItems: "center",
-    gap: 8,
-    background: COLORS.gold,
-    color: "#181206",
-    border: "none",
+  i
