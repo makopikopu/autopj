@@ -20,7 +20,15 @@ const CHAINS = {
   eth: { label: "Ethereum", chainId: 1, native: "ETH", explorer: "https://etherscan.io/tx/", color: "#627EEA" },
   bnb: { label: "BNB Chain", chainId: 56, native: "BNB", explorer: "https://bscscan.com/tx/", color: "#F0B90B" },
   sol: { label: "Solana", chainId: null, native: "SOL", explorer: "https://solscan.io/tx/", color: "#14F195" },
+  sui: { label: "Sui", chainId: null, native: "SUI", explorer: "https://suiscan.xyz/mainnet/tx/", color: "#4DA2FF" },
 };
+
+const SUI_GRAPHQL_ENDPOINT = "https://graphql.mainnet.sui.io/graphql";
+
+function extractCoinSymbol(coinTypeRepr) {
+  const parts = coinTypeRepr.split("::");
+  return parts[parts.length - 1] || coinTypeRepr;
+}
 
 const STORAGE_TX_KEY = "wallet-ledger:transactions";
 const STORAGE_KEYS_KEY = "wallet-ledger:api-keys";
@@ -45,7 +53,7 @@ export default function App() {
   const [showKeys, setShowKeys] = useState(false);
   const [keyDraft, setKeyDraft] = useState({ etherscan: "", helius: "" });
 
-  const [addresses, setAddresses] = useState({ eth: "", bnb: "", sol: "" });
+  const [addresses, setAddresses] = useState({ eth: "", bnb: "", sol: "", sui: "" });
   const [activeChain, setActiveChain] = useState("eth");
   const [chainFilter, setChainFilter] = useState("all");
 
@@ -226,6 +234,77 @@ export default function App() {
     return mapped;
   };
 
+  const fetchSui = async () => {
+    const addr = addresses.sui.trim();
+    if (!/^0x[a-fA-F0-9]{64}$/.test(addr)) {
+      throw new Error("アドレスの形式が正しくありません(0xで始まる66文字)");
+    }
+    const query = `
+      query($addr: SuiAddress!) {
+        address(address: $addr) {
+          transactions(last: 50) {
+            nodes {
+              digest
+              effects {
+                timestamp
+                balanceChanges {
+                  nodes {
+                    owner { address }
+                    coinType { repr }
+                    amount
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    `;
+    const res = await fetch(SUI_GRAPHQL_ENDPOINT, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ query, variables: { addr } }),
+    });
+    if (!res.ok) throw new Error(`API error ${res.status}`);
+    const json = await res.json();
+    if (json.errors) throw new Error(json.errors[0]?.message || "GraphQLエラー");
+
+    const txNodes = json.data?.address?.transactions?.nodes || [];
+    const mapped = [];
+
+    txNodes.forEach((txNode) => {
+      const { digest, effects } = txNode;
+      const { timestamp, balanceChanges } = effects;
+      const changes = balanceChanges?.nodes || [];
+      const myChanges = changes.filter(
+        (c) => c.owner?.address?.toLowerCase() === addr.toLowerCase()
+      );
+      const hasOutflow = myChanges.some((c) => BigInt(c.amount) < 0n);
+      const hasInflow = myChanges.some((c) => BigInt(c.amount) > 0n);
+      const isSwap = hasOutflow && hasInflow && myChanges.length > 1;
+
+      myChanges.forEach((change, idx) => {
+        const amountRaw = BigInt(change.amount);
+        const symbol = extractCoinSymbol(change.coinType.repr);
+        const decimals = 9; // 暫定:SUI以外は桁数が異なる可能性あり(要調整)
+        const value = Number(amountRaw) / Math.pow(10, decimals);
+
+        mapped.push({
+          id: `sui-${digest}-${idx}`,
+          chain: "sui",
+          date: timestamp,
+          type: isSwap ? "swap" : value > 0 ? "receive" : "send",
+          asset: symbol,
+          amount: value,
+          counterparty: null,
+          txHash: digest,
+        });
+      });
+    });
+
+    return mapped;
+  };
+
   const handleFetch = async () => {
     setFetching(true);
     setError("");
@@ -234,8 +313,10 @@ export default function App() {
       let fresh = [];
       if (activeChain === "eth" || activeChain === "bnb") {
         fresh = await fetchEvm(activeChain);
-      } else {
+      } else if (activeChain === "sol") {
         fresh = await fetchSolana();
+      } else if (activeChain === "sui") {
+        fresh = await fetchSui();
       }
       setTxs((prev) => {
         const existingIds = new Set(prev.map((t) => t.id));
@@ -295,6 +376,7 @@ export default function App() {
           <div style={styles.note}>
             Ethereum・BNB Chainは共通の<strong>Etherscan APIキー</strong>(V2 API、無料枠あり)、Solanaは
             <strong>Helius APIキー</strong>(無料枠あり)を使います。どちらもブラウザに保存されるだけで、サーバーには送信されません。
+            Suiは公式GraphQLエンドポイントを直接使うため、APIキーは不要です。
           </div>
           <div style={styles.fieldRow}>
             <label style={styles.label}>Etherscan APIキー(ETH/BNB共通)</label>
@@ -340,7 +422,13 @@ export default function App() {
             style={{ ...styles.input, flex: 1 }}
             value={addresses[activeChain]}
             onChange={(e) => saveAddress(activeChain, e.target.value)}
-            placeholder={activeChain === "sol" ? "Solanaアドレス" : "0x… で始まるアドレス"}
+            placeholder={
+              activeChain === "sol"
+                ? "Solanaアドレス"
+                : activeChain === "sui"
+                ? "0x… で始まるアドレス(66文字)"
+                : "0x… で始まるアドレス"
+            }
           />
           <button style={{ ...styles.btnPrimary, opacity: fetching ? 0.6 : 1 }} disabled={fetching} onClick={handleFetch}>
             {fetching ? <Loader2 size={16} style={{ animation: "spin 1s linear infinite" }} /> : <RefreshCw size={16} />}
@@ -355,7 +443,7 @@ export default function App() {
         <div style={styles.tableHeaderRow}>
           <div style={styles.cardTitle}>取引一覧({filteredTxs.length}件)</div>
           <div style={styles.modeToggle}>
-            {["all", "eth", "bnb", "sol"].map((f) => (
+            {["all", "eth", "bnb", "sol", "sui"].map((f) => (
               <button
                 key={f}
                 onClick={() => setChainFilter(f)}
@@ -392,7 +480,7 @@ export default function App() {
                     </td>
                     <td style={styles.td}>
                       <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                        {typeIcon(t.type)} {t.type === "send" ? "送金" : "受信"}
+                        {typeIcon(t.type)} {t.type === "send" ? "送金" : t.type === "swap" ? "スワップ" : "受信"}
                       </span>
                     </td>
                     <td style={{ ...styles.td, fontWeight: 600 }}>{t.asset}</td>
@@ -460,32 +548,3 @@ const styles = {
     background: COLORS.gold,
     color: "#181206",
     border: "none",
-    borderRadius: 8,
-    padding: "10px 16px",
-    fontWeight: 700,
-    fontSize: 13,
-    cursor: "pointer",
-  },
-  modeToggle: { display: "flex", gap: 6, marginBottom: 10, flexWrap: "wrap" },
-  modeBtn: {
-    background: "transparent",
-    color: COLORS.textDim,
-    border: `1px solid ${COLORS.border}`,
-    borderRadius: 20,
-    padding: "6px 14px",
-    fontSize: 12,
-    cursor: "pointer",
-  },
-  modeBtnActive: { background: COLORS.gold, color: "#181206", borderColor: COLORS.gold, fontWeight: 700 },
-  errorBanner: { background: "#2A171C", border: `1px solid ${COLORS.loss}55`, color: "#F5A5B0", padding: "8px 12px", borderRadius: 8, fontSize: 12, marginTop: 8 },
-  successBanner: { background: "#152A22", border: `1px solid ${COLORS.profit}55`, color: "#9CE8C4", padding: "8px 12px", borderRadius: 8, fontSize: 12, marginTop: 8 },
-  tableHeaderRow: { display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 10, marginBottom: 10 },
-  emptyState: { color: COLORS.textDim, fontSize: 13, padding: "24px 0", textAlign: "center" },
-  tableWrap: { overflowX: "auto" },
-  table: { width: "100%", borderCollapse: "collapse", fontSize: 12.5, fontFamily: "'JetBrains Mono', monospace" },
-  th: { textAlign: "left", padding: "8px 10px", color: COLORS.textDim, fontWeight: 500, borderBottom: `1px solid ${COLORS.border}`, whiteSpace: "nowrap", fontSize: 11 },
-  tr: { borderBottom: `1px solid ${COLORS.border}22` },
-  td: { padding: "8px 10px", whiteSpace: "nowrap" },
-  iconBtn: { background: "transparent", border: "none", cursor: "pointer", padding: 4 },
-  footNote: { color: COLORS.textDim, fontSize: 11, textAlign: "center", marginTop: 8, lineHeight: 1.6 },
-};
